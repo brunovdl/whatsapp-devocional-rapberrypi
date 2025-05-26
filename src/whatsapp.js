@@ -16,6 +16,10 @@ const RETRY_INTERVAL = parseInt(process.env.RETRY_INTERVAL || '5000', 10); // 5 
 const MAX_RESPOSTAS_PADRAO = 5; // Número máximo de mensagens padrão carregadas
 const RESPONDER_AUTOMATICAMENTE = process.env.RESPONDER_AUTOMATICAMENTE !== 'false';
 
+// Variável global para armazenar o QR Code data URL
+let qrCodeDataUrl = null;
+module.exports.qrCodeDataUrl = qrCodeDataUrl;
+
 // Cliente WhatsApp
 let wa = null;
 let clienteInicializado = false;
@@ -155,6 +159,13 @@ async function iniciarCliente() {
         qrGerado = true;
         logger.info('QR Code gerado. Escaneie-o com seu WhatsApp:');
         logger.info('Você tem até 5 minutos para escanear este QR code.');
+
+        // Gerar QR code como data URL e armazenar na variável global
+        qrcode.toDataURL(qr, { errorCorrectionLevel: 'H' }, (err, url) => {
+          if (!err) {
+            qrCodeDataUrl = url;
+          }
+        });
         qrcode.generate(qr, { small: true });
       }
     
@@ -603,5 +614,6 @@ module.exports = {
   enviarMensagem,
   encerrarCliente,
   aguardarConexao,
-  limparSessao,
+  limparSessao,  
+  qrCodeDataUrl: qrCodeDataUrl // Exportar a variável
 };

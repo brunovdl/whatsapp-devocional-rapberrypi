@@ -3,8 +3,14 @@
 
 require('dotenv').config();
 const schedule = require('node-schedule');
+const express = require('express');
+const path = require('path');
 const moment = require('moment');
+const fs = require('fs');
 moment.locale('pt-br');
+
+// Importe a variável qrCodeDataUrl de whatsapp.js
+const { qrCodeDataUrl } = require('./whatsapp');
 
 // Importação dos módulos
 const whatsapp = require('./whatsapp');
@@ -247,8 +253,53 @@ async function iniciarSistema() {
   }
 }
 
-// Iniciar o sistema
-iniciarSistema();
+// Inicialização do servidor web e do sistema
+async function iniciarServidorESistema() {
+  // Inicializar o servidor Express
+  const app = express();
+  const PORT = process.env.PORT || 3000;
+
+  // Servir arquivos estáticos da pasta 'public'
+  app.use(express.static(path.join(__dirname, '../public')));
+
+  // Endpoint para obter configurações
+  app.get('/config', (req, res) => {
+    // Retorna todas as variáveis de ambiente carregadas
+    res.json(process.env);
+  });
+  
+  // Adicione o middleware express.json() para parsear o corpo das requisições JSON
+  app.use(express.json());
+
+  // Endpoint para atualizar configurações
+  app.post('/config', (req, res) => {
+    const newConfig = req.body;
+    let envFileContent = fs.readFileSync('.env', 'utf8');
+    
+    // Atualizar as linhas correspondentes no conteúdo lido
+    for (const key in newConfig) {
+      if (newConfig.hasOwnProperty(key)) {
+        const regex = new RegExp(`^${key}=.*$`, 'm');
+        const newLine = `${key}=${newConfig[key]}`;
+        envFileContent = envFileContent.replace(regex, newLine);
+      }
+    }
+
+    // Escrever o conteúdo atualizado de volta no arquivo .env
+    fs.writeFileSync('.env', envFileContent);
+    res.status(200).send('Configurações atualizadas com sucesso!');
+  });
+  
+  // Endpoint para obter o QR Code (placeholder)
+  app.get('/qrcode', (req, res) => {
+    res.json({ qrCodeUrl: qrCodeDataUrl });
+  });
+
+  // Iniciar o servidor Express
+  app.listen(PORT, () => {
+    logger.info(`Servidor web rodando em http://localhost:${PORT}`);
+  });
+}
 
 // Tratamento de encerramento gracioso
 process.on('SIGINT', async () => {
@@ -267,3 +318,6 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Promessa rejeitada não tratada:');
   logger.error(reason);
 });
+
+// Iniciar o servidor web e o sistema
+iniciarServidorESistema();
